@@ -1,0 +1,56 @@
+FUNCTION ZFM_BM_RPC_DESIGN_SEGITM.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(I_RPC_SI) TYPE  ZVI_BM_RPC_SI
+*"----------------------------------------------------------------------
+  DATA:
+    LS_RPC_R        TYPE ZST0_BM_RPC_R.
+
+  IF I_RPC_SI-ITMTY <> GC_ITEMTYPE_TABLE
+  AND I_RPC_SI-ITMTY <> GC_ITEMTYPE_FSV
+*  AND I_RPC_SI-ITMTY <> GC_ITEMTYPE_TEXT
+    .
+    MESSAGE S029(ZMS_COL_LIB) DISPLAY LIKE GC_MTYPE_E.
+    RETURN.
+  ENDIF.
+
+* Init
+  CALL FUNCTION 'ZFM_BM_RPC_INIT'
+    EXPORTING
+      I_REPID = I_RPC_SI-REPID
+      I_BUKRS = SPACE
+      I_BEMON = '000000'
+    IMPORTING
+      E_RPC_R = LS_RPC_R.
+
+* Get SI data
+  READ TABLE LS_RPC_R-SEGMENTS INTO DATA(LS_RPC_S)
+    WITH KEY RPSEG = I_RPC_SI-RPSEG BINARY SEARCH.
+  IF SY-SUBRC IS INITIAL.
+    READ TABLE LS_RPC_S-ITEMS INTO DATA(LS_RPC_SI)
+      WITH KEY RITEM = I_RPC_SI-RITEM BINARY SEARCH.
+    IF SY-SUBRC IS INITIAL.
+      GS_RPC_DS_SI    = LS_RPC_SI.
+      GS_RPC_DS_SI_O  = LS_RPC_SI.
+      MOVE-CORRESPONDING I_RPC_SI TO ZVI_BM_RPC_SI.
+
+      CALL FUNCTION 'LVC_FIELDCATALOG_MERGE'
+        EXPORTING
+          I_STRUCTURE_NAME   = 'ZST0_BM_RPC_SICELL'
+          I_INTERNAL_TABNAME = 'ZST0_BM_RPC_SICELL'
+        CHANGING
+          CT_FIELDCAT        = GS_RPC_DS_SI-FCAT.
+    ENDIF.
+  ENDIF.
+
+* Generate columns, rows
+  PERFORM INIT_SI_COLS_ROWS.
+
+* Prepare output: Fieldcat, color
+  PERFORM PREPARE_OUTPUT_SI_TABLE.
+
+* Show SI info
+  CALL SCREEN 0100.
+
+ENDFUNCTION.
